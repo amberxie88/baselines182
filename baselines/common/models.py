@@ -5,6 +5,7 @@ from baselines.a2c.utils import conv, fc, conv_to_fc, batch_to_seq, seq_to_batch
 from baselines.common.mpi_running_mean_std import RunningMeanStd
 
 mapping = {}
+OBS_INPUT = None
 
 def register(name):
     def _thunk(func):
@@ -16,7 +17,9 @@ def nature_cnn(unscaled_images, **conv_kwargs):
     """
     CNN from Nature paper.
     """
+    global OBS_INPUT
     scaled_images = tf.cast(unscaled_images, tf.float32) / 255.
+    OBS_INPUT = scaled_images
     activ = tf.nn.relu
     h = activ(conv(scaled_images, 'c1', nf=32, rf=8, stride=4, init_scale=np.sqrt(2),
                    **conv_kwargs))

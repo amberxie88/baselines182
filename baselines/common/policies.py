@@ -63,6 +63,10 @@ class PolicyWithValue(object):
             self.vf = fc(vf_latent, 'vf', 1)
             self.vf = self.vf[:,0]
 
+        from baselines.common.models import OBS_INPUT
+        self.grads_actor = tf.gradients(self.pi, OBS_INPUT)[0]
+        self.grads_critic = tf.gradients(self.vf, OBS_INPUT)[0]
+
     def _evaluate(self, variables, observation, **extra_feed):
         sess = self.sess
         feed_dict = {self.X: adjust_shape(self.X, observation)}
@@ -74,7 +78,7 @@ class PolicyWithValue(object):
 
         return sess.run(variables, feed_dict)
 
-    def step(self, observation, **extra_feed):
+    def step(self, observation, mode='actor' **extra_feed):
         """
         Compute next action(s) given the observation(s)
 
@@ -87,13 +91,16 @@ class PolicyWithValue(object):
 
         Returns:
         -------
-        (action, value estimate, next state, negative log likelihood of the action under current policy parameters) tuple
+        (action, action logits, value estimate, next state, negative log likelihood of the action under current policy parameters) tuple
         """
 
-        a, v, state, neglogp = self._evaluate([self.action, self.vf, self.state, self.neglogp], observation, **extra_feed)
+        if mode == 'actor':
+            a, a_logits, v, state, neglogp, grads = self._evaluate([self.action, self.pi, self.vf, self.state, self.neglogp, self.grads_actor], observation, **extra_feed)
+        else:
+            a, a_logits, v, state, neglogp, grads = self._evaluate([self.action, self.pi, self.vf, self.state, self.neglogp, self.grads_critic], observation, **extra_feed)
         if state.size == 0:
             state = None
-        return a, v, state, neglogp
+        return a, v, state, neglogp, a_logits.flatten(), grads
 
     def value(self, ob, *args, **kwargs):
         """
