@@ -17,10 +17,8 @@ def nature_cnn(unscaled_images, **conv_kwargs):
     """
     CNN from Nature paper.
     """
-    global OBS_INPUT
+    
     scaled_images = tf.cast(unscaled_images, tf.float32) / 255.
-    OBS_INPUT = scaled_images
-    print("Nature CNN", OBS_INPUT)
     activ = tf.nn.relu
     h = activ(conv(scaled_images, 'c1', nf=32, rf=8, stride=4, init_scale=np.sqrt(2),
                    **conv_kwargs))
@@ -63,7 +61,10 @@ def build_impala_cnn(unscaled_images, depths=[16,32,32], **conv_kwargs):
         out = residual_block(out)
         return out
 
+    global OBS_INPUT
     out = tf.cast(unscaled_images, tf.float32) / 255.
+    OBS_INPUT = out
+    print("impala cnn", OBS_INPUT)
 
     for depth in depths:
         out = conv_sequence(out, depth)
