@@ -20,6 +20,7 @@ def nature_cnn(unscaled_images, **conv_kwargs):
     global OBS_INPUT
     scaled_images = tf.cast(unscaled_images, tf.float32) / 255.
     OBS_INPUT = scaled_images
+    print("Nature CNN", OBS_INPUT)
     activ = tf.nn.relu
     h = activ(conv(scaled_images, 'c1', nf=32, rf=8, stride=4, init_scale=np.sqrt(2),
                    **conv_kwargs))

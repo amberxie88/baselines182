@@ -64,6 +64,7 @@ class PolicyWithValue(object):
             self.vf = self.vf[:,0]
 
         from baselines.common.models import OBS_INPUT
+        print("Policy with value", OBS_INPUT)
         self.grads_actor = tf.gradients(self.pi, OBS_INPUT)[0]
         self.grads_critic = tf.gradients(self.vf, OBS_INPUT)[0]
 
