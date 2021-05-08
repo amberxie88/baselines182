@@ -78,7 +78,7 @@ class PolicyWithValue(object):
 
         return sess.run(variables, feed_dict)
 
-    def step(self, observation, mode='actor' **extra_feed):
+    def step(self, observation, mode='actor', **extra_feed):
         """
         Compute next action(s) given the observation(s)
 
