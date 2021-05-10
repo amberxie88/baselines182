@@ -20,7 +20,7 @@ def constfn(val):
 
 def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2048, ent_coef=0.0, lr=3e-4,
             vf_coef=0.5,  max_grad_norm=0.5, gamma=0.99, lam=0.95,
-            log_interval=10, nminibatches=4, noptepochs=4, cliprange=0.2,
+            log_interval=10, nminibatches=4, noptepochs=4, cliprange=0.2, train_agent=True,
             save_interval=0, load_path=None, model_fn=None, update_fn=None, init_fn=None, mpi_rank_weight=1, comm=None, **network_kwargs):
     '''
     Learn policy using PPO algorithm (https://arxiv.org/abs/1707.06347)
@@ -149,35 +149,36 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
         if eval_env is not None:
             eval_epinfobuf.extend(eval_epinfos)
 
-        # Here what we're going to do is for each minibatch calculate the loss and append it.
-        mblossvals = []
-        if states is None: # nonrecurrent version
-            # Index of each element of batch_size
-            # Create the indices array
-            inds = np.arange(nbatch)
-            for _ in range(noptepochs):
-                # Randomize the indexes
-                np.random.shuffle(inds)
-                # 0 to batch_size with batch_train_size step
-                for start in range(0, nbatch, nbatch_train):
-                    end = start + nbatch_train
-                    mbinds = inds[start:end]
-                    slices = (arr[mbinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
-                    mblossvals.append(model.train(lrnow, cliprangenow, *slices))
-        else: # recurrent version
-            assert nenvs % nminibatches == 0
-            envsperbatch = nenvs // nminibatches
-            envinds = np.arange(nenvs)
-            flatinds = np.arange(nenvs * nsteps).reshape(nenvs, nsteps)
-            for _ in range(noptepochs):
-                np.random.shuffle(envinds)
-                for start in range(0, nenvs, envsperbatch):
-                    end = start + envsperbatch
-                    mbenvinds = envinds[start:end]
-                    mbflatinds = flatinds[mbenvinds].ravel()
-                    slices = (arr[mbflatinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
-                    mbstates = states[mbenvinds]
-                    mblossvals.append(model.train(lrnow, cliprangenow, *slices, mbstates))
+        if train_agent:
+            # Here what we're going to do is for each minibatch calculate the loss and append it.
+            mblossvals = []
+            if states is None: # nonrecurrent version
+                # Index of each element of batch_size
+                # Create the indices array
+                inds = np.arange(nbatch)
+                for _ in range(noptepochs):
+                    # Randomize the indexes
+                    np.random.shuffle(inds)
+                    # 0 to batch_size with batch_train_size step
+                    for start in range(0, nbatch, nbatch_train):
+                        end = start + nbatch_train
+                        mbinds = inds[start:end]
+                        slices = (arr[mbinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
+                        mblossvals.append(model.train(lrnow, cliprangenow, *slices))
+            else: # recurrent version
+                assert nenvs % nminibatches == 0
+                envsperbatch = nenvs // nminibatches
+                envinds = np.arange(nenvs)
+                flatinds = np.arange(nenvs * nsteps).reshape(nenvs, nsteps)
+                for _ in range(noptepochs):
+                    np.random.shuffle(envinds)
+                    for start in range(0, nenvs, envsperbatch):
+                        end = start + envsperbatch
+                        mbenvinds = envinds[start:end]
+                        mbflatinds = flatinds[mbenvinds].ravel()
+                        slices = (arr[mbflatinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
+                        mbstates = states[mbenvinds]
+                        mblossvals.append(model.train(lrnow, cliprangenow, *slices, mbstates))
 
         # Feedforward --> get losses --> update
         lossvals = np.mean(mblossvals, axis=0)
@@ -204,8 +205,9 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
                 logger.logkv('eval_eprewmean', safemean([epinfo['r'] for epinfo in eval_epinfobuf]) )
                 logger.logkv('eval_eplenmean', safemean([epinfo['l'] for epinfo in eval_epinfobuf]) )
             logger.logkv('misc/time_elapsed', tnow - tfirststart)
-            for (lossval, lossname) in zip(lossvals, model.loss_names):
-                logger.logkv('loss/' + lossname, lossval)
+            if train_agent:
+                for (lossval, lossname) in zip(lossvals, model.loss_names):
+                    logger.logkv('loss/' + lossname, lossval)
 
             logger.dumpkvs()
         if save_interval and (update % save_interval == 0 or update == 1) and logger.get_dir() and is_mpi_root:

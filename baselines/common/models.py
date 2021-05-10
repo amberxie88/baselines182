@@ -64,7 +64,6 @@ def build_impala_cnn(unscaled_images, depths=[16,32,32], **conv_kwargs):
     global OBS_INPUT
     out = tf.cast(unscaled_images, tf.float32) / 255.
     OBS_INPUT = out
-    print("impala cnn", OBS_INPUT)
 
     for depth in depths:
         out = conv_sequence(out, depth)
